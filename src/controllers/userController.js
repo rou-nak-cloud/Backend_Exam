@@ -1,3 +1,4 @@
+import { multerModel } from "../models/multerModel.js";
 import { sessionModel } from "../models/sessionModel.js";
 import { userModel } from "../models/userModel.js";
 
@@ -107,4 +108,50 @@ const logOut = async (req, res) => {
   }
 };
 
-export { registerUser, login, logOut };
+const uploadPic = async (req, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing user context.`,
+      });
+    }
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: `missing file or Invalid file type. supported jpg,jpeg,png,svg,webp`,
+      });
+    }
+
+    const user = await userModel.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: `User not found.`,
+      });
+    }
+
+    const imageUrl = `http://localhost:${process.env.PORT}/uploads/${req.file.filename}`;
+    user.profilePic = imageUrl;
+    await user.save();
+
+    const multerPic = await multerModel.findOneAndUpdate(
+      { userId: req.userId },
+      { userId: req.userId, picture: imageUrl },
+      { new: true, upsert: true },
+    );
+    return res.status(201).json({
+      success: true,
+      message: "Picture taken successfully.",
+      data: user,
+      multerData: multerPic,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: `Internal server error.`,
+    });
+  }
+};
+
+export { registerUser, login, logOut, uploadPic };
